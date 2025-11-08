@@ -6,7 +6,7 @@ file(GLOB SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/*.h"
 )
 
-add_library(DConsole STATIC ${SOURCES})
+add_library(iniHandler STATIC ${SOURCES})
 
 target_include_directories(iniHandler PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
