@@ -65,7 +65,7 @@ public:
      *     { "Resolution", "1920x1080" },
      *     { "Fullscreen", "true" }
      * };
-     * handler.writeSection(graphics);
+     * writeSection(graphics);
      * @endcode
      */
     bool writeSection(const iniSection& section);
@@ -79,7 +79,7 @@ public:
      * @code
      * IniHandler::iniSection graphics;
      * graphics.name = "Graphics";
-     * if(handler.readSection(graphics))
+     * if(this.readSection(graphics))
      * {
      *     std::cout << "Graphics section exists" << std::endl;
      * }
@@ -95,10 +95,10 @@ public:
      * @return Found value, or an empty string if the key or section does not exist.
      *
      * @code
-     * std::string fullscreen = handler.readValue("Graphics", "Fullscreen");
+     * std::string fullscreen = readEntry_str("Graphics", "Fullscreen");
      * @endcode
      */
-    std::string readValue(const std::string& section, const std::string& key);
+    std::string readEntry_str(const std::string& section, const iniEntry&);
 
     /**
      * @brief Writes or updates a single value in a specific section.
@@ -111,12 +111,14 @@ public:
      * @return true on successful write, false on file failure.
      *
      * @code
-     * handler.writeValue("Graphics", "VSync", "false");
+     * writeEntry_str("Graphics", "VSync", "false");
      * @endcode
      */
-    bool writeValue(const std::string& section,
-        const std::string& key,
-        const std::string& value);
+    bool writeEntry_str(const std::string& section, const std::string& key, const std::string& value);
+
+    std::string readEntry(const std::string& section, const iniEntry& entry);
+
+    bool writeEntry(const std::string& section, const iniEntry& entry);
 
     /**
      * @brief Checks whether the INI file exists and contains data.
@@ -124,7 +126,7 @@ public:
      * @return true if the file does not exist or is empty, false otherwise.
      *
      * @code
-     * if(handler.empty())
+     * if(this.empty())
      *     std::cout << "Config is empty" << std::endl;
      * @endcode
      */

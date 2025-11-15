@@ -52,7 +52,12 @@ bool IniHandler::readSection(const iniSection& section)
     return false;
 }
 
-std::string IniHandler::readValue(const std::string& section, const std::string& key)
+std::string IniHandler::readEntry_str(const std::string& section, const iniEntry& key)
+{
+    return readEntry(section, key);
+}
+
+std::string IniHandler::readEntry(const std::string& section, const iniEntry& entry)
 {
     if (!readAll())
         return "";
@@ -61,10 +66,10 @@ std::string IniHandler::readValue(const std::string& section, const std::string&
     {
         if (s.name == section)
         {
-            for (const auto& entry : s.entries)
+            for (const auto& src_entry : s.entries)
             {
-                if (entry.name == key)
-                    return entry.value;
+                if (src_entry.name == entry.name)
+                    return src_entry.value;
             }
             break;
         }
@@ -106,11 +111,19 @@ bool IniHandler::readAll()
     return true;
 }
 
-bool IniHandler::writeValue(const std::string& section, const std::string& key, const std::string& value)
+bool IniHandler::writeEntry_str(const std::string& section, const std::string& key, const std::string& value)
 {
     if (!readAll())
         return false;
 
+	IniHandler::iniEntry entry{ key, value };
+	return writeEntry(section, entry);
+}
+
+bool IniHandler::writeEntry(const std::string& section, const iniEntry& entry)
+{
+    if (!readAll())
+        return false;
     iniSection* targetSection = nullptr;
     for (auto& s : file.sections)
     {
@@ -120,36 +133,31 @@ bool IniHandler::writeValue(const std::string& section, const std::string& key, 
             break;
         }
     }
-
     if (!targetSection)
     {
         file.sections.push_back({ section, {} });
         targetSection = &file.sections.back();
     }
-
     bool found = false;
-    for (auto& entry : targetSection->entries)
+    for (auto& e : targetSection->entries)
     {
-        if (entry.name == key)
+        if (e.name == entry.name)
         {
-            entry.value = value;
+            e.value = entry.value;
             found = true;
             break;
         }
     }
-
     if (!found)
-        targetSection->entries.push_back({ key, value });
-
+        targetSection->entries.push_back(entry);
     std::ofstream out(file.path);
     if (!out.is_open())
         return false;
-
     for (const auto& s : file.sections)
     {
         out << "[" << s.name << "]\n";
-        for (const auto& entry : s.entries)
-            out << entry.name << "=" << entry.value << "\n";
+        for (const auto& e : s.entries)
+            out << e.name << "=" << e.value << "\n";
         out << "\n";
     }
     return true;
