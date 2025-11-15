@@ -26,55 +26,66 @@ public:
      * @endcode
      */
     explicit IniHandler(const std::filesystem::path& filePath)
-        : iniPath(filePath)
     {
-        if (!std::filesystem::exists(iniPath))
+        file.path = filePath;
+
+        if (!std::filesystem::exists(file.path))
         {
-            std::ofstream createFile(iniPath);
+            std::ofstream createFile(file.path);
         }
     }
 
+    struct iniEntry {
+        std::string name;
+        std::string value;
+    };
+
+    struct iniSection {
+        std::string name;
+        std::vector<iniEntry> entries;
+    };
+
+    struct iniFile {
+        std::filesystem::path path;
+        std::vector<iniSection> sections;
+    };
+
     /**
-     * @brief Writes a full section and its key/value pairs.
+     * @brief Writes a full section and its entries.
      *
      * If the section already exists, it will be replaced.
      *
-     * @param section Name of the INI section (without brackets).
-     * @param entries Vector of key-value pairs to write.
+     * @param section The iniSection structure containing the section name and entries.
      * @return true when successful, false otherwise.
      *
      * @code
-     * std::vector<std::pair<std::string, std::string>> entries =
-     * {
+     * IniHandler::iniSection graphics;
+     * graphics.name = "Graphics";
+     * graphics.entries = {
      *     { "Resolution", "1920x1080" },
      *     { "Fullscreen", "true" }
      * };
-     * handler.writeSection("Graphics", entries);
+     * handler.writeSection(graphics);
      * @endcode
      */
-    bool writeSection(const std::string& section,
-        const std::vector<std::pair<std::string, std::string>>& entries);
+    bool writeSection(const iniSection& section);
 
     /**
-     * @brief Reads an entire section into a vector of key-value pairs.
+     * @brief Checks if a section exists and contains entries.
      *
-     * @param section Name of the section to read.
-     * @param outEntries Storage for the result.
-     * @return true if the section exists and was read, false if missing or empty.
+     * @param section The iniSection structure with the section name to check.
+     * @return true if the section exists and has entries, false otherwise.
      *
      * @code
-     * std::vector<std::pair<std::string, std::string>> graphicsData;
-     * if(handler.readSection("Graphics", graphicsData))
+     * IniHandler::iniSection graphics;
+     * graphics.name = "Graphics";
+     * if(handler.readSection(graphics))
      * {
-     *     for(auto& [key, value] : graphicsData)
-     *     {
-     *         std::cout << key << " = " << value << std::endl;
-     *     }
+     *     std::cout << "Graphics section exists" << std::endl;
      * }
      * @endcode
      */
-    bool readSection(const std::string& section,
-        std::vector<std::pair<std::string, std::string>>& outEntries);
+    bool readSection(const iniSection& section);
 
     /**
      * @brief Reads a single value from a specific section.
@@ -110,7 +121,7 @@ public:
     /**
      * @brief Checks whether the INI file exists and contains data.
      *
-     * @return true if the file does not exist or is empty.
+     * @return true if the file does not exist or is empty, false otherwise.
      *
      * @code
      * if(handler.empty())
@@ -119,29 +130,15 @@ public:
      */
     bool empty() const
     {
-        if (!std::filesystem::exists(iniPath))
+        if (!std::filesystem::exists(file.path))
             return true;
 
-        std::ifstream in(iniPath, std::ios::ate);
+        std::ifstream in(file.path, std::ios::ate);
         return in.tellg() == 0;
     }
-
 private:
-    std::filesystem::path iniPath;
+    iniFile file;
 
-    /**
-     * @brief Internal helper that loads the entire INI file into a
-     *        structure keyed by section name.
-     *
-     * @param outData Map storing each section and its key-value pairs.
-     * @return true on success, false if the file could not be read or parsed.
-     *
-     * @code
-     * std::unordered_map<std::string,
-     *     std::vector<std::pair<std::string, std::string>>> data;
-     * handler.readAll(data);
-     * @endcode
-     */
-    bool readAll(std::unordered_map<std::string,
-        std::vector<std::pair<std::string, std::string>>>& outData);
+    /// Internal helper that loads the entire INI file into memory.
+    bool readAll();
 };

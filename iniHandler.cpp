@@ -5,114 +5,152 @@
  */
 #include "iniHandler.h"
 
-bool IniHandler::writeSection(const std::string& section,
-                      const std::vector<std::pair<std::string, std::string>>& entries)
+bool IniHandler::writeSection(const iniSection& section)
 {
-    std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> allData;
-    readAll(allData);
-
-    allData[section] = entries;
-
-    std::ofstream out(iniPath);
-    if(!out.is_open())
+    if (!readAll())
         return false;
-
-    for(const auto& s : allData)
-    {
-        out << "[" << s.first << "]\n";
-        for(const auto& kv : s.second)
-            out << kv.first << "=" << kv.second << "\n";
-        out << "\n";
-    }
-    return true;
-}
-
-bool IniHandler::readSection(const std::string& section,
-                             std::vector<std::pair<std::string, std::string>>& outEntries)
-{
-    std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> allData;
-    if(!readAll(allData))
-        return false;
-
-    outEntries.clear();
-    if(allData.count(section))
-    {
-        outEntries = allData[section];
-        return true;
-    }
-    return false;
-}
-
-std::string IniHandler::readValue(const std::string& section, const std::string& key)
-{
-    std::unordered_map<std::string,
-        std::vector<std::pair<std::string, std::string>>> allData;
-
-    if(!readAll(allData))
-        return "";
-
-    if(!allData.count(section))
-        return "";
-
-    for(const auto& kv : allData[section])
-    {
-        if(kv.first == key)
-            return kv.second;
-    }
-    return "";
-}
-
-bool IniHandler::readAll(std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>>& outData)
-{
-    std::ifstream in(iniPath);
-    if(!in.is_open())
-        return false;
-
-    outData.clear();
-    std::string line;
-    std::string currentSection;
-
-    while(std::getline(in, line))
-    {
-        if(line.empty())
-            continue;
-
-        if(line.front() == '[' && line.back() == ']')
-        {
-            currentSection = line.substr(1, line.size() - 2);
-            continue;
-        }
-
-        auto pos = line.find('=');
-        if(pos == std::string::npos)
-            continue;
-
-        std::string key = line.substr(0, pos);
-        std::string value = line.substr(pos + 1);
-
-        outData[currentSection].emplace_back(key, value);
-    }
-    return true;
-}
-
-bool IniHandler::writeValue(const std::string& section, const std::string& key, const std::string& value)
-{
-    std::vector<std::pair<std::string, std::string>> entries;
-    readSection(section, entries);
 
     bool found = false;
-    for (auto& kv : entries)
+    for (auto& s : file.sections)
     {
-        if (kv.first == key)
+        if (s.name == section.name)
         {
-            kv.second = value;
+            s.entries = section.entries;
             found = true;
             break;
         }
     }
 
     if (!found)
-        entries.emplace_back(key, value);
+        file.sections.push_back(section);
 
-    return writeSection(section, entries);
+    std::ofstream out(file.path);
+    if (!out.is_open())
+        return false;
+
+    for (const auto& s : file.sections)
+    {
+        out << "[" << s.name << "]\n";
+        for (const auto& entry : s.entries)
+            out << entry.name << "=" << entry.value << "\n";
+        out << "\n";
+    }
+    return true;
+}
+
+bool IniHandler::readSection(const iniSection& section)
+{
+    if (!readAll())
+        return false;
+
+    for (const auto& s : file.sections)
+    {
+        if (s.name == section.name)
+            return !s.entries.empty();
+    }
+
+    return false;
+}
+
+std::string IniHandler::readValue(const std::string& section, const std::string& key)
+{
+    if (!readAll())
+        return "";
+
+    for (const auto& s : file.sections)
+    {
+        if (s.name == section)
+        {
+            for (const auto& entry : s.entries)
+            {
+                if (entry.name == key)
+                    return entry.value;
+            }
+            break;
+        }
+    }
+    return "";
+}
+
+bool IniHandler::readAll()
+{
+    std::ifstream in(file.path);
+    if (!in.is_open())
+        return false;
+
+    file.sections.clear();
+    std::string line;
+    iniSection* currentSection = nullptr;
+
+    while (std::getline(in, line))
+    {
+        if (line.empty())
+            continue;
+
+        if (line.front() == '[' && line.back() == ']')
+        {
+            file.sections.push_back({ line.substr(1, line.size() - 2), {} });
+            currentSection = &file.sections.back();
+            continue;
+        }
+
+        auto pos = line.find('=');
+        if (pos == std::string::npos || !currentSection)
+            continue;
+
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+
+        currentSection->entries.push_back({ key, value });
+    }
+    return true;
+}
+
+bool IniHandler::writeValue(const std::string& section, const std::string& key, const std::string& value)
+{
+    if (!readAll())
+        return false;
+
+    iniSection* targetSection = nullptr;
+    for (auto& s : file.sections)
+    {
+        if (s.name == section)
+        {
+            targetSection = &s;
+            break;
+        }
+    }
+
+    if (!targetSection)
+    {
+        file.sections.push_back({ section, {} });
+        targetSection = &file.sections.back();
+    }
+
+    bool found = false;
+    for (auto& entry : targetSection->entries)
+    {
+        if (entry.name == key)
+        {
+            entry.value = value;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+        targetSection->entries.push_back({ key, value });
+
+    std::ofstream out(file.path);
+    if (!out.is_open())
+        return false;
+
+    for (const auto& s : file.sections)
+    {
+        out << "[" << s.name << "]\n";
+        for (const auto& entry : s.entries)
+            out << entry.name << "=" << entry.value << "\n";
+        out << "\n";
+    }
+    return true;
 }
